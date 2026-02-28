@@ -331,9 +331,7 @@ export default function App() {
           className="bg-white p-8 rounded-3xl shadow-xl border border-black/5 w-full max-w-md"
         >
           <div className="flex flex-col items-center gap-4 mb-8">
-            <div className="bg-black text-white p-4 rounded-2xl shadow-lg">
-              <Car size={32} />
-            </div>
+          
             <div className="text-center">
               <h1 className="text-2xl font-bold tracking-tight">TrustyYellowCabs Invoice</h1>
               <p className="text-sm text-black/40 font-medium">Please enter your password to continue</p>
