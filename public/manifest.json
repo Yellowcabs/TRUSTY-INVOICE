@@ -1,0 +1,22 @@
+{
+  "short_name": "TRUSTY INVOICE",
+  "name": "TRUSTY INVOICE",
+  "icons": [
+    {
+      "src": "/images/taxi-icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/images/taxi-icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "scope": "/",
+  "theme_color": "#000000",
+  "description": "Generate taxi invoices and quotations instantly."
+}

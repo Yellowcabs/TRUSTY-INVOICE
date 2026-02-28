@@ -1,0 +1,19 @@
+# Node modules
+node_modules/
+
+# Build outputs
+build/
+dist/
+
+# Test coverage
+coverage/
+
+# System files
+.DS_Store
+
+# Logs
+*.log
+
+# Environment files
+.env*
+!.env.example
