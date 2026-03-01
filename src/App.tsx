@@ -51,7 +51,7 @@ export default function App() {
   const { isInstallable, install } = usePWAInstall();
 
   useEffect(() => {
-    document.title = "TrustyYellowCabs Invoice";
+    document.title = `Invoice-${data.invoice.number}.pdf`;
   }, []);
 
   useEffect(() => {
