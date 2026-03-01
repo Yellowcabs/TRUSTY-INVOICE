@@ -146,23 +146,22 @@ export default function App() {
     if (!invoiceRef.current || isGenerating) return;
     setIsGenerating(true);
     try {
-      // Use a higher scale for better quality
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       const canvas = await html2canvas(invoiceRef.current, { 
-        scale: 2, 
+        scale: isMobile ? 1.5 : 2, 
         useCORS: true,
         logging: false,
-        windowWidth: 1200,
+        allowTaint: true,
+        windowWidth: 1000,
         onclone: (clonedDoc) => {
           const invoice = clonedDoc.querySelector('.print-invoice') as HTMLElement;
           if (invoice) {
-            // Force the invoice to be visible and unscaled in the clone
             const parent = invoice.parentElement;
             if (parent) {
               parent.style.transform = 'none';
               parent.style.width = '210mm';
               parent.style.display = 'block';
             }
-            // Ensure all ancestors are visible
             let current: HTMLElement | null = invoice;
             while (current && current !== clonedDoc.body) {
               current.style.display = 'block';
@@ -174,13 +173,23 @@ export default function App() {
           }
         }
       });
-      const imgData = canvas.toDataURL('image/png');
+      const imgData = canvas.toDataURL('image/jpeg', 0.8);
       const pdfWidth = 210;
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
       const pdf = new jsPDF('p', 'mm', [pdfWidth, pdfHeight]);
       
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`Invoice-${data.invoice.number}.pdf`);
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      
+      if (isMobile && /iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        const blob = pdf.output('blob');
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Invoice-${data.invoice.number}.pdf`;
+        link.click();
+      } else {
+        pdf.save(`Invoice-${data.invoice.number}.pdf`);
+      }
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Failed to generate PDF. Please try again or use the Print option.');
@@ -193,23 +202,33 @@ export default function App() {
     if (!invoiceRef.current || isGenerating) return;
     setIsGenerating(true);
 
+    const totals = calculateTotal();
+    const text = `*Taxi Invoice: ${data.invoice.number}*%0A%0A` +
+      `*Passenger:* ${data.passenger.name}%0A` +
+      `*Trip:* ${data.trip.pickup} to ${data.trip.drop}%0A` +
+      `*Vehicle:* ${data.vehicle.type} (${data.vehicle.number})%0A%0A` +
+      `*Grand Total:* ₹${totals.grandTotal.toLocaleString()}%0A` +
+      `*Advance Paid:* ₹${totals.advance.toLocaleString()}%0A` +
+      `*Balance Payable:* ₹${totals.balance.toLocaleString()}%0A%0A` +
+      `Thank you for riding with us!`;
+
     try {
-      // Generate the PDF
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       const canvas = await html2canvas(invoiceRef.current, { 
-        scale: 2, 
+        scale: isMobile ? 1.5 : 2, 
         useCORS: true,
-        windowWidth: 1200,
+        logging: false,
+        allowTaint: true,
+        windowWidth: 1000,
         onclone: (clonedDoc) => {
           const invoice = clonedDoc.querySelector('.print-invoice') as HTMLElement;
           if (invoice) {
-            // Force the invoice to be visible and unscaled in the clone
             const parent = invoice.parentElement;
             if (parent) {
               parent.style.transform = 'none';
               parent.style.width = '210mm';
               parent.style.display = 'block';
             }
-            // Ensure all ancestors are visible
             let current: HTMLElement | null = invoice;
             while (current && current !== clonedDoc.body) {
               current.style.display = 'block';
@@ -221,17 +240,16 @@ export default function App() {
           }
         }
       });
-      const imgData = canvas.toDataURL('image/png');
+      const imgData = canvas.toDataURL('image/jpeg', 0.8);
       const pdfWidth = 210;
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
       const pdf = new jsPDF('p', 'mm', [pdfWidth, pdfHeight]);
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
       
       const pdfBlob = pdf.output('blob');
       const fileName = `Invoice-${data.invoice.number}.pdf`;
       const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
 
-      // Check if sharing is supported
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
@@ -239,30 +257,10 @@ export default function App() {
           text: `Invoice for trip from ${data.trip.pickup} to ${data.trip.drop}`,
         });
       } else {
-        // Fallback for browsers that don't support file sharing
-        const totals = calculateTotal();
-        const text = `*Taxi Invoice: ${data.invoice.number}*%0A%0A` +
-          `*Passenger:* ${data.passenger.name}%0A` +
-          `*Trip:* ${data.trip.pickup} to ${data.trip.drop}%0A` +
-          `*Vehicle:* ${data.vehicle.type} (${data.vehicle.number})%0A%0A` +
-          `*Grand Total:* ₹${totals.grandTotal.toLocaleString()}%0A` +
-          `*Advance Paid:* ₹${totals.advance.toLocaleString()}%0A` +
-          `*Balance Payable:* ₹${totals.balance.toLocaleString()}%0A%0A` +
-          `Thank you for riding with us!`;
         window.open(`https://wa.me/?text=${text}`, '_blank');
       }
     } catch (err) {
       console.error('Error sharing:', err);
-      // Fallback to text if sharing fails
-      const totals = calculateTotal();
-      const text = `*Taxi Invoice: ${data.invoice.number}*%0A%0A` +
-        `*Passenger:* ${data.passenger.name}%0A` +
-        `*Trip:* ${data.trip.pickup} to ${data.trip.drop}%0A` +
-        `*Vehicle:* ${data.vehicle.type} (${data.vehicle.number})%0A%0A` +
-        `*Grand Total:* ₹${totals.grandTotal.toLocaleString()}%0A` +
-        `*Advance Paid:* ₹${totals.advance.toLocaleString()}%0A` +
-        `*Balance Payable:* ₹${totals.balance.toLocaleString()}%0A%0A` +
-        `Thank you for riding with us!`;
       window.open(`https://wa.me/?text=${text}`, '_blank');
     } finally {
       setIsGenerating(false);
@@ -270,7 +268,13 @@ export default function App() {
   };
 
   const printInvoice = () => {
+    const originalTitle = document.title;
+    document.title = `Invoice-${data.invoice.number}`;
     window.print();
+    // Restore title after a short delay to ensure print dialog picked it up
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 1000);
   };
 
   const resetData = () => {
@@ -901,7 +905,9 @@ export default function App() {
                   className="bg-white border border-black/10 px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 hover:bg-black/5 flex-1 md:flex-none justify-center disabled:opacity-50"
                 >
                   <Download size={16} className={isGenerating ? 'animate-bounce' : ''} /> 
-                  <span className="hidden sm:inline">{isGenerating ? 'Generating...' : 'PDF'}</span>
+                  <span className={isGenerating ? 'inline' : 'hidden sm:inline'}>
+                    {isGenerating ? 'PDF...' : 'PDF'}
+                  </span>
                 </button>
                 <button 
                   onClick={shareWhatsApp} 
@@ -909,7 +915,9 @@ export default function App() {
                   className="bg-[#25D366] text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 hover:opacity-90 flex-1 md:flex-none justify-center disabled:opacity-50"
                 >
                   <Share2 size={16} className={isGenerating ? 'animate-pulse' : ''} /> 
-                  <span className="hidden sm:inline">{isGenerating ? 'Processing...' : 'WhatsApp'}</span>
+                  <span className={isGenerating ? 'inline' : 'hidden sm:inline'}>
+                    {isGenerating ? 'Wait...' : 'WhatsApp'}
+                  </span>
                 </button>
                 <button onClick={resetData} className="hidden md:flex bg-black text-white px-4 py-2 rounded-xl text-sm font-semibold items-center gap-2">
                   <Plus size={16} /> New Bill
@@ -1128,7 +1136,7 @@ export default function App() {
                     </div>
                   )}
 
-                  <div className="bg-[#E9F2F5] rounded-lg p-6 flex justify-between items-center">
+                  <div className="-mx-[10mm] bg-[#E9F2F5] border-t border-b border-black/10 px-[10mm] py-6 flex justify-between items-center">
                     <p className="text-lg font-bold">Balance Payable</p>
                     <p className="text-xl font-bold">₹{calculateTotal().balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                   </div>
