@@ -1154,7 +1154,7 @@ export default function App() {
                   </div>
                   
                   {data.fare.advancePaid > 0 && (
-                    <div className="bg-red-50/50 border border-red-100/50 rounded-lg p-4 flex justify-between items-center">
+                    <div className="-mx-[10mm] bg-red-50/50 border border-red-100/50 px-[10mm] py-6 flex justify-between items-center">
                       <p className="text-sm font-bold text-red-600">Advance Paid</p>
                       <p className="text-lg font-bold text-red-600">- ₹{data.fare.advancePaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                     </div>
