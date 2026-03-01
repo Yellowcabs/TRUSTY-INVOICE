@@ -51,6 +51,10 @@ export default function App() {
   const { isInstallable, install } = usePWAInstall();
 
   useEffect(() => {
+    document.title = "TrustyYellowCabs Invoice";
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem('companyDetails', JSON.stringify(data.company));
   }, [data.company]);
 
@@ -180,13 +184,20 @@ export default function App() {
       
       pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
       
-      if (isMobile && /iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+      if (isMobile) {
+        // For mobile, we use a blob and a direct download link which is more reliable across all mobile browsers
         const blob = pdf.output('blob');
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
         link.download = `Invoice-${data.invoice.number}.pdf`;
+        document.body.appendChild(link);
         link.click();
+        // Cleanup
+        setTimeout(() => {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        }, 100);
       } else {
         pdf.save(`Invoice-${data.invoice.number}.pdf`);
       }
@@ -199,44 +210,95 @@ export default function App() {
   };
 
   const shareWhatsApp = async () => {
-  if (!invoiceRef.current || isGenerating) return;
-  setIsGenerating(true);
+    if (!invoiceRef.current || isGenerating) return;
+    setIsGenerating(true);
 
-  try {
-    const canvas = await html2canvas(invoiceRef.current, {
-      scale: window.innerWidth < 768 ? 1.2 : 2,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-    });
+    const totals = calculateTotal();
+    const text = `*Taxi Invoice: ${data.invoice.number}*%0A%0A` +
+      `*Passenger:* ${data.passenger.name}%0A` +
+      `*Trip:* ${data.trip.pickup} to ${data.trip.drop}%0A` +
+      `*Vehicle:* ${data.vehicle.type} (${data.vehicle.number})%0A%0A` +
+      `*Grand Total:* ₹${totals.grandTotal.toLocaleString()}%0A` +
+      `*Advance Paid:* ₹${totals.advance.toLocaleString()}%0A` +
+      `*Balance Payable:* ₹${totals.balance.toLocaleString()}%0A%0A` +
+      `Thank you for riding with us!`;
 
-    const imgData = canvas.toDataURL("image/jpeg", 0.9);
+    try {
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const canvas = await html2canvas(invoiceRef.current, { 
+        scale: isMobile ? 1.5 : 2, 
+        useCORS: true,
+        logging: false,
+        allowTaint: true,
+        windowWidth: 1000,
+        onclone: (clonedDoc) => {
+          const invoice = clonedDoc.querySelector('.print-invoice') as HTMLElement;
+          if (invoice) {
+            const parent = invoice.parentElement;
+            if (parent) {
+              parent.style.transform = 'none';
+              parent.style.width = '210mm';
+              parent.style.display = 'block';
+            }
+            let current: HTMLElement | null = invoice;
+            while (current && current !== clonedDoc.body) {
+              current.style.display = 'block';
+              current.style.visibility = 'visible';
+              current.style.opacity = '1';
+              current = current.parentElement;
+            }
+            clonedDoc.body.style.overflow = 'visible';
+          }
+        }
+      });
+      const imgData = canvas.toDataURL('image/jpeg', 0.8);
+      const pdfWidth = 210;
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      const pdf = new jsPDF('p', 'mm', [pdfWidth, pdfHeight]);
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      
+      const pdfBlob = pdf.output('blob');
+      const fileName = `Invoice-${data.invoice.number}.pdf`;
+      const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
 
-    const pdf = new jsPDF("p", "mm", "a4");
-    const imgHeight = (canvas.height * 210) / canvas.width;
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: `Taxi Invoice: ${data.invoice.number}`,
+          text: `Invoice for trip from ${data.trip.pickup} to ${data.trip.drop}`,
+        });
+      } else {
+        window.open(`https://wa.me/?text=${text}`, '_blank');
+      }
+    } catch (err) {
+      console.error('Error sharing:', err);
+      window.open(`https://wa.me/?text=${text}`, '_blank');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
-    pdf.addImage(imgData, "JPEG", 0, 0, 210, imgHeight);
-
-    // 1️⃣ Download first (always works)
-    pdf.save(`Invoice-${data.invoice.number}.pdf`);
-
-    // 2️⃣ Open WhatsApp (no text)
-    window.location.href = "https://wa.me/";
-
-  } catch (error) {
-    alert("Failed to generate PDF.");
-  } finally {
-    setIsGenerating(false);
-  }
-};
+  useEffect(() => {
+    const handleBeforePrint = () => {
+      document.title = `Invoice-${data.invoice.number}`;
+    };
+    const handleAfterPrint = () => {
+      document.title = "TrustyYellowCabs Invoice";
+    };
+    window.addEventListener('beforeprint', handleBeforePrint);
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => {
+      window.removeEventListener('beforeprint', handleBeforePrint);
+      window.removeEventListener('afterprint', handleAfterPrint);
+    };
+  }, [data.invoice.number]);
 
   const printInvoice = () => {
-    const originalTitle = document.title;
     document.title = `Invoice-${data.invoice.number}`;
-    window.print();
-    // Restore title after a short delay to ensure print dialog picked it up
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     setTimeout(() => {
-      document.title = originalTitle;
-    }, 1000);
+      window.print();
+    }, isMobile ? 500 : 100);
   };
 
   const resetData = () => {

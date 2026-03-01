@@ -1,5 +1,5 @@
 {
-  "name": "TaxiBill - Instant Taxi Billing & Quotations",
+  "name": "trustyinvoice",
   "description": "A lightweight, offline-first PWA for generating taxi invoices and quotations instantly. No backend required.",
   "requestFramePermissions": []
 }
