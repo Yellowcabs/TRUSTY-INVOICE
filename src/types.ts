@@ -6,6 +6,7 @@ export interface InvoiceData {
     phone: string;
     email: string;
     website: string;
+    customInfo: string;
   };
   invoice: {
     number: string;
@@ -70,6 +71,7 @@ export const INITIAL_DATA: InvoiceData = {
     phone: '',
     email: '',
     website: '',
+    customInfo: '',
   },
   invoice: {
     number: `INV-${new Date().toISOString().slice(2, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`,

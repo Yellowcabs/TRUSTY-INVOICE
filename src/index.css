@@ -3,9 +3,16 @@
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --color-space: srgb;
 }
 
 @layer base {
+  body {
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
   @media print {
     @page {
       size: auto;
@@ -17,7 +24,7 @@
       margin: 0 !important;
       padding: 0 !important;
       width: 100% !important;
-      height: auto !important;
+      height: 100% !important;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
@@ -26,16 +33,16 @@
       display: none !important;
     }
 
-    /* Ensure all parents of the invoice are visible and compact during printing */
+    /* Ensure all parents of the invoice are visible and centered during printing */
     html, body, #root, #root > div, main, .print-container, .print-container > div {
       display: flex !important;
       flex-direction: column !important;
       align-items: center !important;
-      justify-content: flex-start !important;
+      justify-content: center !important;
       position: static !important;
       width: 100% !important;
-      height: auto !important;
-      min-height: 0 !important;
+      height: 100% !important;
+      min-height: 100vh !important;
       margin: 0 !important;
       padding: 0 !important;
       transform: none !important;
@@ -54,7 +61,7 @@
       box-shadow: none !important;
       border: none !important;
       margin: 0 auto !important;
-      padding: 10mm !important;
+      padding: 6mm !important;
       width: 210mm !important;
       min-height: auto !important;
       background: white !important;

@@ -51,7 +51,7 @@ export default function App() {
   const { isInstallable, install } = usePWAInstall();
 
   useEffect(() => {
-    document.title = `Invoice-${data.invoice.number}.pdf`;
+    document.title = "TrustyYellowCabs Invoice";
   }, []);
 
   useEffect(() => {
@@ -152,7 +152,7 @@ export default function App() {
     try {
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       const canvas = await html2canvas(invoiceRef.current, { 
-        scale: isMobile ? 1.5 : 2, 
+        scale: 3, 
         useCORS: true,
         logging: false,
         allowTaint: true,
@@ -160,6 +160,35 @@ export default function App() {
         onclone: (clonedDoc) => {
           const invoice = clonedDoc.querySelector('.print-invoice') as HTMLElement;
           if (invoice) {
+            // Force all colors to be hex/rgb to avoid oklch issues in html2canvas
+            const allElements = invoice.querySelectorAll('*');
+            allElements.forEach((el) => {
+              if (el instanceof HTMLElement) {
+                const style = window.getComputedStyle(el);
+                el.style.color = style.color;
+                el.style.backgroundColor = style.backgroundColor;
+                el.style.borderColor = style.borderColor;
+                // Fix for uneven text
+                el.style.fontVariantLigatures = 'none';
+                el.style.textRendering = 'geometricPrecision';
+              }
+
+              // Special handling for SVGs (icons) to ensure visibility in html2canvas
+              if (el instanceof SVGElement) {
+                const style = window.getComputedStyle(el);
+                const stroke = style.stroke !== 'none' ? style.stroke : '';
+                const fill = style.fill !== 'none' ? style.fill : '';
+                
+                if (stroke) el.setAttribute('stroke', stroke);
+                if (fill) el.setAttribute('fill', fill);
+                
+                // Ensure dimensions are explicit
+                const rect = el.getBoundingClientRect();
+                if (rect.width) el.setAttribute('width', rect.width.toString());
+                if (rect.height) el.setAttribute('height', rect.height.toString());
+              }
+            });
+
             const parent = invoice.parentElement;
             if (parent) {
               parent.style.transform = 'none';
@@ -177,12 +206,12 @@ export default function App() {
           }
         }
       });
-      const imgData = canvas.toDataURL('image/jpeg', 0.8);
+      const imgData = canvas.toDataURL('image/png', 1.0);
       const pdfWidth = 210;
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
       const pdf = new jsPDF('p', 'mm', [pdfWidth, pdfHeight]);
       
-      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
       
       if (isMobile) {
         // For mobile, we use a blob and a direct download link which is more reliable across all mobile browsers
@@ -213,20 +242,10 @@ export default function App() {
     if (!invoiceRef.current || isGenerating) return;
     setIsGenerating(true);
 
-    const totals = calculateTotal();
-    const text = `*Taxi Invoice: ${data.invoice.number}*%0A%0A` +
-      `*Passenger:* ${data.passenger.name}%0A` +
-      `*Trip:* ${data.trip.pickup} to ${data.trip.drop}%0A` +
-      `*Vehicle:* ${data.vehicle.type} (${data.vehicle.number})%0A%0A` +
-      `*Grand Total:* ₹${totals.grandTotal.toLocaleString()}%0A` +
-      `*Advance Paid:* ₹${totals.advance.toLocaleString()}%0A` +
-      `*Balance Payable:* ₹${totals.balance.toLocaleString()}%0A%0A` +
-      `Thank you for riding with us!`;
-
     try {
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       const canvas = await html2canvas(invoiceRef.current, { 
-        scale: isMobile ? 1.5 : 2, 
+        scale: 3, 
         useCORS: true,
         logging: false,
         allowTaint: true,
@@ -234,6 +253,35 @@ export default function App() {
         onclone: (clonedDoc) => {
           const invoice = clonedDoc.querySelector('.print-invoice') as HTMLElement;
           if (invoice) {
+            // Force all colors to be hex/rgb to avoid oklch issues in html2canvas
+            const allElements = invoice.querySelectorAll('*');
+            allElements.forEach((el) => {
+              if (el instanceof HTMLElement) {
+                const style = window.getComputedStyle(el);
+                el.style.color = style.color;
+                el.style.backgroundColor = style.backgroundColor;
+                el.style.borderColor = style.borderColor;
+                // Fix for uneven text
+                el.style.fontVariantLigatures = 'none';
+                el.style.textRendering = 'geometricPrecision';
+              }
+
+              // Special handling for SVGs (icons) to ensure visibility in html2canvas
+              if (el instanceof SVGElement) {
+                const style = window.getComputedStyle(el);
+                const stroke = style.stroke !== 'none' ? style.stroke : '';
+                const fill = style.fill !== 'none' ? style.fill : '';
+                
+                if (stroke) el.setAttribute('stroke', stroke);
+                if (fill) el.setAttribute('fill', fill);
+                
+                // Ensure dimensions are explicit
+                const rect = el.getBoundingClientRect();
+                if (rect.width) el.setAttribute('width', rect.width.toString());
+                if (rect.height) el.setAttribute('height', rect.height.toString());
+              }
+            });
+
             const parent = invoice.parentElement;
             if (parent) {
               parent.style.transform = 'none';
@@ -251,11 +299,11 @@ export default function App() {
           }
         }
       });
-      const imgData = canvas.toDataURL('image/jpeg', 0.8);
+      const imgData = canvas.toDataURL('image/png', 1.0);
       const pdfWidth = 210;
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
       const pdf = new jsPDF('p', 'mm', [pdfWidth, pdfHeight]);
-      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
       
       const pdfBlob = pdf.output('blob');
       const fileName = `Invoice-${data.invoice.number}.pdf`;
@@ -265,14 +313,15 @@ export default function App() {
         await navigator.share({
           files: [file],
           title: `Taxi Invoice: ${data.invoice.number}`,
-          text: `Invoice for trip from ${data.trip.pickup} to ${data.trip.drop}`,
         });
       } else {
-        window.open(`https://wa.me/?text=${text}`, '_blank');
+        // Fallback: Download and notify
+        pdf.save(fileName);
+        alert('Sharing files is not supported on this browser. The PDF has been downloaded instead. You can now share it manually.');
       }
     } catch (err) {
       console.error('Error sharing:', err);
-      window.open(`https://wa.me/?text=${text}`, '_blank');
+      alert('Failed to share PDF. It might be due to browser restrictions.');
     } finally {
       setIsGenerating(false);
     }
@@ -505,6 +554,16 @@ export default function App() {
                         value={data.company.address}
                         onChange={(e) => updateField('company', 'address', e.target.value)}
                         placeholder=""
+                        className="w-full bg-[#F9F9F9] border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-black/5 transition-all outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold uppercase tracking-wider text-black/40 mb-1">Custom Info (GST, etc.)</label>
+                      <input 
+                        type="text" 
+                        value={data.company.customInfo}
+                        onChange={(e) => updateField('company', 'customInfo', e.target.value)}
+                        placeholder="e.g. GSTIN: 27AAAAA0000A1Z5"
                         className="w-full bg-[#F9F9F9] border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-black/5 transition-all outline-none"
                       />
                     </div>
@@ -961,85 +1020,92 @@ export default function App() {
                 >
                   <div 
                     ref={invoiceRef}
-                    className="bg-white shadow-2xl mx-auto p-[10mm] w-[210mm] border border-black/5 print:shadow-none print:border-none text-[#1A1A1A] print-invoice"
+                    className="bg-white shadow-2xl mx-auto p-[6mm] w-[210mm] border border-[#F2F2F2] print:shadow-none print:border-none text-[#1A1A1A] print-invoice"
                   >
                 {/* Header Section */}
-                <div className="flex justify-between items-start mb-16">
+                <div className="grid grid-cols-2 gap-8 mb-3 items-start">
                   <div className="flex items-center gap-4">
                     {logoPreview && (
                       <img src={logoPreview} alt="Logo" className="h-16 w-16 object-contain" referrerPolicy="no-referrer" />
                     )}
                     <div>
-                      {data.company.name && <h1 className="text-2xl font-bold tracking-tight">{data.company.name}</h1>}
-                      {data.company.address && <p className="text-sm text-black/70">{data.company.address}</p>}
+                      {data.company.name && <h1 className="text-2xl font-bold tracking-tight text-[#000000]">{data.company.name}</h1>}
+                      {data.company.address && <p className="text-sm text-[#4D4D4D] leading-tight mt-1">{data.company.address}</p>}
+                      {data.company.customInfo && <p className="text-xs text-[#666666] mt-1 font-medium">{data.company.customInfo}</p>}
                     </div>
                   </div>
-                  <div className="text-right space-y-1">
+                  <div className="text-right space-y-1.5">
                     {data.company.phone && (
-                      <div className="flex items-center justify-end gap-2 text-sm">
-                        <Phone size={14} />
+                      <div className="flex items-center justify-end gap-2 text-sm font-bold">
+                        <Phone size={14} className="text-[#999999]" strokeWidth={2.5} />
                         <span>{data.company.phone}</span>
                       </div>
                     )}
                     {data.company.email && (
-                      <div className="flex items-center justify-end gap-2 text-sm">
-                        <Mail size={14} />
+                      <div className="flex items-center justify-end gap-2 text-sm font-bold">
+                        <Mail size={14} className="text-[#999999]" strokeWidth={2.5} />
                         <span>{data.company.email}</span>
                       </div>
                     )}
                     {data.company.website && (
-                      <div className="flex items-center justify-end gap-2 text-sm">
-                        <Globe size={14} />
+                      <div className="flex items-center justify-end gap-2 text-sm font-bold">
+                        <Globe size={14} className="text-[#999999]" strokeWidth={2.5} />
                         <span>{data.company.website}</span>
                       </div>
                     )}
                   </div>
                 </div>
 
-                <div className="h-[1px] bg-black/10 w-full mb-12" />
+                <div className="h-[1px] bg-[#E6E6E6] w-full mb-4" />
 
                 {/* Title and Invoice Info */}
-                <div className="flex justify-between items-end mb-12">
-                  <h2 className="text-xl font-bold uppercase tracking-wider">Taxi Invoice</h2>
+                <div className="grid grid-cols-2 gap-8 mb-3 items-end">
+                  <div>
+                    <h2 className="text-xl font-bold uppercase tracking-wider text-[#000000]">Taxi Invoice</h2>
+                  </div>
                   <div className="text-right">
-                    <p className="text-xs font-semibold text-black/40 uppercase tracking-widest">Invoice #</p>
-                    <p className="text-lg font-bold">{data.invoice.number}</p>
-                    <div className="flex items-center justify-end gap-2 text-sm font-semibold mt-1">
-                      <Calendar size={14} className="text-black/30" />
-                      <span>{data.invoice.date}</span>
+                    <div className="inline-block text-right">
+                      <p className="text-[10px] font-bold text-[#999999] uppercase tracking-[0.1em] mb-1">Invoice Details</p>
+                      <div className="flex flex-col items-end gap-1">
+                        <p className="text-lg font-bold leading-none">#{data.invoice.number}</p>
+                        <div className="flex items-center gap-2 text-sm font-bold text-[#4D4D4D]">
+                          <Calendar size={14} className="text-[#B2B2B2]" />
+                          <span>{data.invoice.date}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Details Grid */}
-                <div className="grid grid-cols-2 gap-16 mb-12">
+                <div className="grid grid-cols-2 gap-8 mb-3 items-start">
                   <div>
-                    <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-black/40 mb-4">Passenger Details</h3>
+                    <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#999999] mb-4">Passenger Details</h3>
                     <div className="space-y-2">
                       <div className="flex items-center gap-3">
-                        <User size={16} className="text-black/40" />
+                        <User size={16} className="text-[#999999]" />
                         <p className="font-bold">{data.passenger.name}</p>
                       </div>
                       <div className="flex items-center gap-3">
-                        <Phone size={16} className="text-black/40" />
+                        <Phone size={16} className="text-[#999999]" />
                         <p className="font-bold">{data.passenger.phone}</p>
                       </div>
                     </div>
                   </div>
                   <div>
-                    <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-black/40 mb-4">Trip Details</h3>
+                    <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#999999] mb-4">Trip Details</h3>
                     <div className="space-y-4">
                       <div className="flex gap-3">
-                        <MapPin size={16} className="text-black/40 mt-1" />
+                        <MapPin size={16} className="text-[#999999] mt-1" />
                         <div>
-                          <p className="text-[10px] font-bold text-black/40 uppercase tracking-widest mb-1">From</p>
+                          <p className="text-[10px] font-bold text-[#999999] uppercase tracking-widest mb-1">From</p>
                           <p className="text-sm font-bold leading-snug">{data.trip.pickup}</p>
                         </div>
                       </div>
                       <div className="flex gap-3">
-                        <MapPin size={16} className="text-black/40 mt-1" />
+                        <MapPin size={16} className="text-[#999999] mt-1" />
                         <div>
-                          <p className="text-[10px] font-bold text-black/40 uppercase tracking-widest mb-1">To</p>
+                          <p className="text-[10px] font-bold text-[#999999] uppercase tracking-widest mb-1">To</p>
                           <p className="text-sm font-bold leading-snug">{data.trip.drop}</p>
                         </div>
                       </div>
@@ -1048,23 +1114,23 @@ export default function App() {
                 </div>
 
                 {/* Vehicle Info Bar */}
-                <div className="bg-[#F8F9FA] rounded-lg p-6 grid grid-cols-2 gap-8 mb-12">
+                <div className="bg-[#F8F9FA] rounded-lg p-3 grid grid-cols-2 gap-8 mb-3">
                   <div>
-                    <p className="text-[10px] font-bold text-black/40 uppercase tracking-widest mb-1">Vehicle</p>
+                    <p className="text-[10px] font-bold text-[#999999] uppercase tracking-widest mb-1">Vehicle</p>
                     <p className="font-bold">{data.vehicle.type}</p>
                   </div>
                   {!(data.fare.hours > 0 || data.fare.extraKms > 0) && data.fare.distance > 0 && (
                     <div>
-                      <p className="text-[10px] font-bold text-black/40 uppercase tracking-widest mb-1">Distance</p>
+                      <p className="text-[10px] font-bold text-[#999999] uppercase tracking-widest mb-1">Distance</p>
                       <p className="font-bold">{data.fare.distance} Kms</p>
                     </div>
                   )}
                 </div>
 
                 {/* Fare Breakdown */}
-                <div className="mb-12">
-                  <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-black/40 mb-6">Fare Breakdown</h3>
-                  <div className="space-y-4">
+                <div className="mb-3">
+                  <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#999999] mb-3">Fare Breakdown</h3>
+                  <div className="space-y-2">
                     {data.fare.baseFare > 0 && (
                       <div className="flex justify-between items-center">
                         <p className="font-semibold">Base Fare</p>
@@ -1147,49 +1213,48 @@ export default function App() {
                 </div>
 
                 {/* Totals */}
-                <div className="space-y-3 mb-12">
-                  <div className="flex justify-between items-center pt-6 border-t border-black/5">
+                <div className="space-y-1.5 mb-3">
+                  <div className="flex justify-between items-center pt-4 border-t border-[#F2F2F2]">
                     <p className="text-lg font-bold">Grand Total</p>
                     <p className="text-xl font-bold">₹{calculateTotal().grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                   </div>
                   
                   {data.fare.advancePaid > 0 && (
-                    <div className="-mx-[10mm] bg-red-50/50 border border-red-100/50 px-[10mm] py-6 flex justify-between items-center">
-                      <p className="text-sm font-bold text-red-600">Advance Paid</p>
-                      <p className="text-lg font-bold text-red-600">- ₹{data.fare.advancePaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                  <div className="-mx-[10mm] bg-[#E9F2F5] border-t border-b border-[#E6E6E6] px-[10mm] py-3 flex justify-between items-center">
+                      <p className="text-sm font-bold text-[#DC2626]">Advance Paid</p>
+                      <p className="text-lg font-bold text-[#DC2626]">- ₹{data.fare.advancePaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                     </div>
                   )}
 
-                  <div className="-mx-[10mm] bg-[#E9F2F5] border-t border-b border-black/10 px-[10mm] py-6 flex justify-between items-center">
+                  <div className="-mx-[10mm] bg-[#E9F2F5] border-t border-b border-[#E6E6E6] px-[10mm] py-3 flex justify-between items-center">
                     <p className="text-lg font-bold">Balance Payable</p>
                     <p className="text-xl font-bold">₹{calculateTotal().balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                   </div>
                 </div>
 
-                {/* Notes Section */}
-                {data.notes && (
-                  <div className="mb-12">
-                    <p className="text-[10px] font-bold text-black/40 uppercase tracking-widest mb-2">Notes</p>
-                    <p className="text-sm text-black/70 whitespace-pre-wrap leading-relaxed">{data.notes}</p>
-                  </div>
-                )}
+                    {data.notes && (
+                      <div className="mb-3">
+                        <p className="text-[10px] font-bold text-[#999999] uppercase tracking-widest mb-1.5">Notes</p>
+                        <p className="text-sm text-[#4D4D4D] whitespace-pre-wrap leading-relaxed text-justify">{data.notes}</p>
+                      </div>
+                    )}
 
                 {/* Footer Info */}
-                <div className="grid grid-cols-2 gap-16 mb-16">
+                <div className="grid grid-cols-2 gap-8 mb-3">
                   <div>
-                    <p className="text-[10px] font-bold text-black/40 uppercase tracking-widest mb-2">Driver Name</p>
+                    <p className="text-[10px] font-bold text-[#999999] uppercase tracking-widest mb-2">Driver Name</p>
                     <p className="font-bold uppercase">{data.driver.name}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-black/40 uppercase tracking-widest mb-2">Vehicle Number</p>
+                    <p className="text-[10px] font-bold text-[#999999] uppercase tracking-widest mb-2">Vehicle Number</p>
                     <p className="font-bold uppercase">{data.vehicle.number}</p>
                   </div>
                 </div>
 
                 {/* Closing Message */}
                 <div className="text-center space-y-2">
-                  {data.company.name && <p className="text-sm font-semibold text-black/60">Thank you for travelling with {data.company.name}!</p>}
-                  <p className="text-[10px] font-bold text-black/30 uppercase tracking-widest">This is a computer generated invoice.</p>
+                  {data.company.name && <p className="text-sm font-semibold text-[#666666]">Thank you for travelling with {data.company.name}!</p>}
+                  <p className="text-[10px] font-bold text-[#B2B2B2] uppercase tracking-widest">This is a computer generated invoice.</p>
                 </div>
               </div>
             </div>
