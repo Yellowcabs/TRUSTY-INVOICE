@@ -180,13 +180,19 @@ export default function App() {
       
       pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
       
-      if (isMobile && /iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+      if (isMobile) {
+        // For mobile, we use a blob and a direct download link which is more reliable
         const blob = pdf.output('blob');
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
         link.download = `Invoice-${data.invoice.number}.pdf`;
+        document.body.appendChild(link);
         link.click();
+        setTimeout(() => {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        }, 100);
       } else {
         pdf.save(`Invoice-${data.invoice.number}.pdf`);
       }
@@ -200,17 +206,13 @@ export default function App() {
 
   const shareWhatsApp = async () => {
     if (!invoiceRef.current || isGenerating) return;
-    setIsGenerating(true);
+    
+    if (!navigator.share) {
+      alert("Sharing is not supported on this browser. Please use the 'Download' or 'Print' button to save the PDF and then share it manually.");
+      return;
+    }
 
-    const totals = calculateTotal();
-    const text = `*Taxi Invoice: ${data.invoice.number}*%0A%0A` +
-      `*Passenger:* ${data.passenger.name}%0A` +
-      `*Trip:* ${data.trip.pickup} to ${data.trip.drop}%0A` +
-      `*Vehicle:* ${data.vehicle.type} (${data.vehicle.number})%0A%0A` +
-      `*Grand Total:* ₹${totals.grandTotal.toLocaleString()}%0A` +
-      `*Advance Paid:* ₹${totals.advance.toLocaleString()}%0A` +
-      `*Balance Payable:* ₹${totals.balance.toLocaleString()}%0A%0A` +
-      `Thank you for riding with us!`;
+    setIsGenerating(true);
 
     try {
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -250,31 +252,41 @@ export default function App() {
       const fileName = `Invoice-${data.invoice.number}.pdf`;
       const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
 
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
           title: `Taxi Invoice: ${data.invoice.number}`,
-          text: `Invoice for trip from ${data.trip.pickup} to ${data.trip.drop}`,
         });
       } else {
-        window.open(`https://wa.me/?text=${text}`, '_blank');
+        alert("Your browser supports sharing but not file sharing. Please use the 'Download' button to save the PDF first.");
       }
     } catch (err) {
       console.error('Error sharing:', err);
-      window.open(`https://wa.me/?text=${text}`, '_blank');
+      if (err instanceof Error && err.name !== 'AbortError') {
+        alert("Could not share the file. Please try downloading it instead.");
+      }
     } finally {
       setIsGenerating(false);
     }
   };
 
+  useEffect(() => {
+    const handleBeforePrint = () => {
+      document.title = `Invoice-${data.invoice.number}`;
+    };
+    const handleAfterPrint = () => {
+      document.title = "TrustyYellowCabs Invoice";
+    };
+    window.addEventListener('beforeprint', handleBeforePrint);
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => {
+      window.removeEventListener('beforeprint', handleBeforePrint);
+      window.removeEventListener('afterprint', handleAfterPrint);
+    };
+  }, [data.invoice.number]);
+
   const printInvoice = () => {
-    const originalTitle = document.title;
-    document.title = `Invoice-${data.invoice.number}`;
     window.print();
-    // Restore title after a short delay to ensure print dialog picked it up
-    setTimeout(() => {
-      document.title = originalTitle;
-    }, 1000);
   };
 
   const resetData = () => {
@@ -916,7 +928,7 @@ export default function App() {
                 >
                   <Share2 size={16} className={isGenerating ? 'animate-pulse' : ''} /> 
                   <span className={isGenerating ? 'inline' : 'hidden sm:inline'}>
-                    {isGenerating ? 'Wait...' : 'WhatsApp'}
+                    {isGenerating ? 'Wait...' : 'Share PDF'}
                   </span>
                 </button>
                 <button onClick={resetData} className="hidden md:flex bg-black text-white px-4 py-2 rounded-xl text-sm font-semibold items-center gap-2">
