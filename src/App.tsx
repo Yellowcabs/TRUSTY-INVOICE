@@ -327,34 +327,24 @@ export default function App() {
               }
             });
 
-            const parent = invoice.parentElement;
+         const parent = invoice.parentElement;
             if (parent) {
               parent.style.transform = 'none';
               parent.style.width = '210mm';
               parent.style.display = 'block';
-              parent.style.margin = '0';
-              parent.style.padding = '0';
-              parent.style.overflow = 'visible';
-              parent.style.height = 'auto';
             }
             let current: HTMLElement | null = invoice;
             while (current && current !== clonedDoc.body) {
               current.style.display = 'block';
               current.style.visibility = 'visible';
               current.style.opacity = '1';
-              current.style.margin = '0';
-              current.style.padding = '0';
-              current.style.overflow = 'visible';
-              current.style.height = 'auto';
-              current.style.maxHeight = 'none';
               current = current.parentElement;
             }
             clonedDoc.body.style.overflow = 'visible';
-            clonedDoc.body.style.margin = '0';
-            clonedDoc.body.style.padding = '0';
           }
         }
       });
+
       const imgData = canvas.toDataURL('image/png', 1.0);
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = 210;
