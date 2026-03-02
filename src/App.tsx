@@ -5,18 +5,12 @@ import {
   Share2, 
   Plus, 
   Car, 
-  User, 
-  MapPin, 
   FileText, 
   Eye, 
   Smartphone,
   ChevronRight,
   Upload,
   X,
-  Mail,
-  Globe,
-  Phone,
-  Calendar,
   Lock,
   LogOut
 } from 'lucide-react';
@@ -146,7 +140,7 @@ export default function App() {
     }
   };
 
-  const downloadPDF = async () => {
+ const downloadPDF = async () => {
     if (!invoiceRef.current || isGenerating) return;
     setIsGenerating(true);
     try {
@@ -160,17 +154,37 @@ export default function App() {
         onclone: (clonedDoc) => {
           const invoice = clonedDoc.querySelector('.print-invoice') as HTMLElement;
           if (invoice) {
+            // Helper to normalize colors to RGB (fixes oklch/oklab issues in html2canvas)
+            const normalizeColor = (color: string) => {
+              if (!color || color === 'transparent' || color === 'none' || color.startsWith('rgb')) return color;
+              try {
+                const tempCanvas = clonedDoc.createElement('canvas');
+                tempCanvas.width = 1;
+                tempCanvas.height = 1;
+                const ctx = tempCanvas.getContext('2d');
+                if (!ctx) return color;
+                ctx.fillStyle = color;
+                ctx.fillRect(0, 0, 1, 1);
+                const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+                return `rgba(${r}, ${g}, ${b}, ${a / 255})`;
+              } catch (e) {
+                return color;
+              }
+            };
+
+
             // Force all colors to be hex/rgb to avoid oklch issues in html2canvas
             const allElements = invoice.querySelectorAll('*');
             allElements.forEach((el) => {
               if (el instanceof HTMLElement) {
                 const style = window.getComputedStyle(el);
-                el.style.color = style.color;
-                el.style.backgroundColor = style.backgroundColor;
-                el.style.borderColor = style.borderColor;
+                el.style.color = normalizeColor(style.color);
+                el.style.backgroundColor = normalizeColor(style.backgroundColor);
+                el.style.borderColor = normalizeColor(style.borderColor);
                 // Fix for uneven text
                 el.style.fontVariantLigatures = 'none';
                 el.style.textRendering = 'geometricPrecision';
+                (el.style as any).webkitFontSmoothing = 'antialiased';
               }
 
               // Special handling for SVGs (icons) to ensure visibility in html2canvas
@@ -179,8 +193,8 @@ export default function App() {
                 const stroke = style.stroke !== 'none' ? style.stroke : '';
                 const fill = style.fill !== 'none' ? style.fill : '';
                 
-                if (stroke) el.setAttribute('stroke', stroke);
-                if (fill) el.setAttribute('fill', fill);
+                if (stroke) el.setAttribute('stroke', normalizeColor(stroke));
+                if (fill) el.setAttribute('fill', normalizeColor(fill));
                 
                 // Ensure dimensions are explicit
                 const rect = el.getBoundingClientRect();
@@ -189,7 +203,7 @@ export default function App() {
               }
             });
 
-            const parent = invoice.parentElement;
+          const parent = invoice.parentElement;
             if (parent) {
               parent.style.transform = 'none';
               parent.style.width = '210mm';
@@ -206,12 +220,24 @@ export default function App() {
           }
         }
       });
+
       const imgData = canvas.toDataURL('image/png', 1.0);
+      const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = 210;
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      const pdf = new jsPDF('p', 'mm', [pdfWidth, pdfHeight]);
+      const pdfHeight = 297;
+      const contentHeight = (canvas.height * pdfWidth) / canvas.width;
       
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+      let finalWidth = pdfWidth;
+      let finalHeight = contentHeight;
+      
+      if (contentHeight > pdfHeight) {
+        const ratio = pdfHeight / contentHeight;
+        finalWidth = pdfWidth * ratio;
+        finalHeight = pdfHeight;
+      }
+      
+      const xOffset = (pdfWidth - finalWidth) / 2;
+      pdf.addImage(imgData, 'PNG', xOffset, 0, finalWidth, finalHeight, undefined, 'FAST');
       
       if (isMobile) {
         // For mobile, we use a blob and a direct download link which is more reliable across all mobile browsers
@@ -249,21 +275,40 @@ export default function App() {
         useCORS: true,
         logging: false,
         allowTaint: true,
-        windowWidth: 1000,
+        windowWidth: 800,
         onclone: (clonedDoc) => {
           const invoice = clonedDoc.querySelector('.print-invoice') as HTMLElement;
           if (invoice) {
+            // Helper to normalize colors to RGB (fixes oklch/oklab issues in html2canvas)
+            const normalizeColor = (color: string) => {
+              if (!color || color === 'transparent' || color === 'none' || color.startsWith('rgb')) return color;
+              try {
+                const tempCanvas = clonedDoc.createElement('canvas');
+                tempCanvas.width = 1;
+                tempCanvas.height = 1;
+                const ctx = tempCanvas.getContext('2d');
+                if (!ctx) return color;
+                ctx.fillStyle = color;
+                ctx.fillRect(0, 0, 1, 1);
+                const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+                return `rgba(${r}, ${g}, ${b}, ${a / 255})`;
+              } catch (e) {
+                return color;
+              }
+            };
+
             // Force all colors to be hex/rgb to avoid oklch issues in html2canvas
             const allElements = invoice.querySelectorAll('*');
             allElements.forEach((el) => {
               if (el instanceof HTMLElement) {
                 const style = window.getComputedStyle(el);
-                el.style.color = style.color;
-                el.style.backgroundColor = style.backgroundColor;
-                el.style.borderColor = style.borderColor;
+                el.style.color = normalizeColor(style.color);
+                el.style.backgroundColor = normalizeColor(style.backgroundColor);
+                el.style.borderColor = normalizeColor(style.borderColor);
                 // Fix for uneven text
                 el.style.fontVariantLigatures = 'none';
                 el.style.textRendering = 'geometricPrecision';
+                (el.style as any).webkitFontSmoothing = 'antialiased';
               }
 
               // Special handling for SVGs (icons) to ensure visibility in html2canvas
@@ -272,8 +317,8 @@ export default function App() {
                 const stroke = style.stroke !== 'none' ? style.stroke : '';
                 const fill = style.fill !== 'none' ? style.fill : '';
                 
-                if (stroke) el.setAttribute('stroke', stroke);
-                if (fill) el.setAttribute('fill', fill);
+                if (stroke) el.setAttribute('stroke', normalizeColor(stroke));
+                if (fill) el.setAttribute('fill', normalizeColor(fill));
                 
                 // Ensure dimensions are explicit
                 const rect = el.getBoundingClientRect();
@@ -287,23 +332,46 @@ export default function App() {
               parent.style.transform = 'none';
               parent.style.width = '210mm';
               parent.style.display = 'block';
+              parent.style.margin = '0';
+              parent.style.padding = '0';
+              parent.style.overflow = 'visible';
+              parent.style.height = 'auto';
             }
             let current: HTMLElement | null = invoice;
             while (current && current !== clonedDoc.body) {
               current.style.display = 'block';
               current.style.visibility = 'visible';
               current.style.opacity = '1';
+              current.style.margin = '0';
+              current.style.padding = '0';
+              current.style.overflow = 'visible';
+              current.style.height = 'auto';
+              current.style.maxHeight = 'none';
               current = current.parentElement;
             }
             clonedDoc.body.style.overflow = 'visible';
+            clonedDoc.body.style.margin = '0';
+            clonedDoc.body.style.padding = '0';
           }
         }
       });
       const imgData = canvas.toDataURL('image/png', 1.0);
+      const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = 210;
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      const pdf = new jsPDF('p', 'mm', [pdfWidth, pdfHeight]);
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+      const pdfHeight = 297;
+      const contentHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      let finalWidth = pdfWidth;
+      let finalHeight = contentHeight;
+      
+      if (contentHeight > pdfHeight) {
+        const ratio = pdfHeight / contentHeight;
+        finalWidth = pdfWidth * ratio;
+        finalHeight = pdfHeight;
+      }
+      
+      const xOffset = (pdfWidth - finalWidth) / 2;
+      pdf.addImage(imgData, 'PNG', xOffset, 0, finalWidth, finalHeight, undefined, 'FAST');
       
       const pdfBlob = pdf.output('blob');
       const fileName = `Invoice-${data.invoice.number}.pdf`;
@@ -1020,241 +1088,216 @@ export default function App() {
                 >
                   <div 
                     ref={invoiceRef}
-                    className="bg-white shadow-2xl mx-auto p-[6mm] w-[210mm] border border-[#F2F2F2] print:shadow-none print:border-none text-[#1A1A1A] print-invoice"
+                    className="bg-white shadow-2xl mx-auto p-[10mm] w-[210mm] border border-[#F2F2F2] print:shadow-none print:border-none text-[#1A1A1A] print-invoice"
                   >
                 {/* Header Section */}
-                <div className="grid grid-cols-2 gap-8 mb-3 items-start">
+                <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-4">
                     {logoPreview && (
-                      <img src={logoPreview} alt="Logo" className="h-16 w-16 object-contain" referrerPolicy="no-referrer" />
+                      <img src={logoPreview} alt="Logo" className="h-14 w-14 object-contain" referrerPolicy="no-referrer" />
                     )}
                     <div>
-                      {data.company.name && <h1 className="text-2xl font-bold tracking-tight text-[#000000]">{data.company.name}</h1>}
-                      {data.company.address && <p className="text-sm text-[#4D4D4D] leading-tight mt-1">{data.company.address}</p>}
-                      {data.company.customInfo && <p className="text-xs text-[#666666] mt-1 font-medium">{data.company.customInfo}</p>}
+                      {data.company.name && <h1 className="text-xl font-black tracking-tighter text-[#000000] uppercase leading-none">{data.company.name}</h1>}
+                      {data.company.address && <p className="text-xs text-[#666666] leading-tight mt-1 max-w-[280px]">{data.company.address}</p>}
+                      {data.company.customInfo && <p className="text-[10px] text-[#888888] mt-1 font-bold uppercase tracking-widest">{data.company.customInfo}</p>}
                     </div>
                   </div>
-                  <div className="text-right space-y-1.5">
-                    {data.company.phone && (
-                      <div className="flex items-center justify-end gap-2 text-sm font-bold">
-                        <Phone size={14} className="text-[#999999]" strokeWidth={2.5} />
-                        <span>{data.company.phone}</span>
-                      </div>
-                    )}
-                    {data.company.email && (
-                      <div className="flex items-center justify-end gap-2 text-sm font-bold">
-                        <Mail size={14} className="text-[#999999]" strokeWidth={2.5} />
-                        <span>{data.company.email}</span>
-                      </div>
-                    )}
-                    {data.company.website && (
-                      <div className="flex items-center justify-end gap-2 text-sm font-bold">
-                        <Globe size={14} className="text-[#999999]" strokeWidth={2.5} />
-                        <span>{data.company.website}</span>
-                      </div>
-                    )}
+                  <div className="text-right space-y-0.5">
+                    {data.company.phone && <p className="text-xs font-bold">{data.company.phone}</p>}
+                    {data.company.email && <p className="text-xs font-bold text-[#666666]">{data.company.email}</p>}
+                    {data.company.website && <p className="text-xs font-bold text-[#666666]">{data.company.website}</p>}
                   </div>
                 </div>
 
-                <div className="h-[1px] bg-[#E6E6E6] w-full mb-4" />
+                <div className="h-[1px] bg-black/10 w-full mb-4" />
 
                 {/* Title and Invoice Info */}
-                <div className="grid grid-cols-2 gap-8 mb-3 items-end">
+                <div className="flex justify-between items-end mb-6">
                   <div>
-                    <h2 className="text-xl font-bold uppercase tracking-wider text-[#000000]">Taxi Invoice</h2>
+                    <h2 className="text-2xl font-black uppercase tracking-tighter text-[#000000] leading-none">Invoice</h2>
+                    <p className="text-xs font-bold text-[#888888] mt-1">#{data.invoice.number}</p>
                   </div>
                   <div className="text-right">
-                    <div className="inline-block text-right">
-                      <p className="text-[10px] font-bold text-[#999999] uppercase tracking-[0.1em] mb-1">Invoice Details</p>
-                      <div className="flex flex-col items-end gap-1">
-                        <p className="text-lg font-bold leading-none">#{data.invoice.number}</p>
-                        <div className="flex items-center gap-2 text-sm font-bold text-[#4D4D4D]">
-                          <Calendar size={14} className="text-[#B2B2B2]" />
-                          <span>{data.invoice.date}</span>
-                        </div>
-                      </div>
-                    </div>
+                    <p className="text-[9px] font-black text-[#888888] uppercase tracking-[0.2em] mb-1">Date of Issue</p>
+                    <p className="text-sm font-bold">{data.invoice.date}</p>
                   </div>
                 </div>
 
                 {/* Details Grid */}
-                <div className="grid grid-cols-2 gap-8 mb-3 items-start">
+                <div className="grid grid-cols-2 gap-8 mb-6">
                   <div>
-                    <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#999999] mb-4">Passenger Details</h3>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-3">
-                        <User size={16} className="text-[#999999]" />
-                        <p className="font-bold">{data.passenger.name}</p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Phone size={16} className="text-[#999999]" />
-                        <p className="font-bold">{data.passenger.phone}</p>
-                      </div>
+                    <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-[#888888] mb-2 border-b border-[#EEEEEE] pb-1">Passenger</h3>
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-bold">{data.passenger.name}</p>
+                      <p className="text-xs font-bold text-[#666666]">{data.passenger.phone}</p>
                     </div>
                   </div>
                   <div>
-                    <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#999999] mb-4">Trip Details</h3>
-                    <div className="space-y-4">
-                      <div className="flex gap-3">
-                        <MapPin size={16} className="text-[#999999] mt-1" />
-                        <div>
-                          <p className="text-[10px] font-bold text-[#999999] uppercase tracking-widest mb-1">From</p>
-                          <p className="text-sm font-bold leading-snug">{data.trip.pickup}</p>
-                        </div>
+                    <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-[#888888] mb-2 border-b border-[#EEEEEE] pb-1">Trip Route</h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-[8px] font-black text-[#AAAAAA] uppercase tracking-widest mb-0.5">Pickup</p>
+                        <p className="text-xs font-bold leading-tight">{data.trip.pickup}</p>
                       </div>
-                      <div className="flex gap-3">
-                        <MapPin size={16} className="text-[#999999] mt-1" />
-                        <div>
-                          <p className="text-[10px] font-bold text-[#999999] uppercase tracking-widest mb-1">To</p>
-                          <p className="text-sm font-bold leading-snug">{data.trip.drop}</p>
-                        </div>
+                      <div>
+                        <p className="text-[8px] font-black text-[#AAAAAA] uppercase tracking-widest mb-0.5">Drop</p>
+                        <p className="text-xs font-bold leading-tight">{data.trip.drop}</p>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Vehicle Info Bar */}
-                <div className="bg-[#F8F9FA] rounded-lg p-3 grid grid-cols-2 gap-8 mb-3">
+                <div className="bg-[#F8F9FA] border border-black/5 rounded-lg p-3 flex justify-between items-center mb-6">
                   <div>
-                    <p className="text-[10px] font-bold text-[#999999] uppercase tracking-widest mb-1">Vehicle</p>
-                    <p className="font-bold">{data.vehicle.type}</p>
+                    <p className="text-[8px] font-bold text-[#888888] uppercase tracking-[0.2em] mb-0.5">Vehicle Details</p>
+                    <p className="text-sm font-bold uppercase">{data.vehicle.type} — {data.vehicle.number}</p>
                   </div>
                   {!(data.fare.hours > 0 || data.fare.extraKms > 0) && data.fare.distance > 0 && (
-                    <div>
-                      <p className="text-[10px] font-bold text-[#999999] uppercase tracking-widest mb-1">Distance</p>
-                      <p className="font-bold">{data.fare.distance} Kms</p>
+                    <div className="text-right">
+                      <p className="text-[8px] font-bold text-[#888888] uppercase tracking-[0.2em] mb-0.5">Total Distance</p>
+                      <p className="text-sm font-bold">{data.fare.distance} Kms</p>
                     </div>
                   )}
                 </div>
 
                 {/* Fare Breakdown */}
-                <div className="mb-3">
-                  <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#999999] mb-3">Fare Breakdown</h3>
+                <div className="mb-6">
+                  <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-[#888888] mb-3 border-b border-[#EEEEEE] pb-1">Charges Breakdown</h3>
                   <div className="space-y-2">
                     {data.fare.baseFare > 0 && (
                       <div className="flex justify-between items-center">
-                        <p className="font-semibold">Base Fare</p>
-                        <p className="font-bold">₹{data.fare.baseFare.toFixed(2)}</p>
+                        <p className="text-xs font-bold text-[#444444]">Base Fare</p>
+                        <p className="text-xs font-bold">₹{data.fare.baseFare.toFixed(2)}</p>
                       </div>
                     )}
                     {data.fare.distance > 0 && data.fare.ratePerKm > 0 && (
                       <div className="flex justify-between items-center">
-                        <p className="font-semibold">Kms Charge ({data.fare.distance} km × ₹{data.fare.ratePerKm}/km)</p>
-                        <p className="font-bold">₹{(data.fare.distance * data.fare.ratePerKm).toFixed(2)}</p>
+                        <p className="text-xs font-bold text-[#444444]">Kms Charge <span className="text-[9px] text-[#AAAAAA] ml-2">({data.fare.distance} km × ₹{data.fare.ratePerKm})</span></p>
+                        <p className="text-xs font-bold">₹{(data.fare.distance * data.fare.ratePerKm).toFixed(2)}</p>
                       </div>
                     )}
                     {data.fare.hours > 0 && data.fare.ratePerHour > 0 && (
                       <div className="flex justify-between items-center">
-                        <p className="font-semibold">Hourly Charge ({data.fare.hours} hrs × ₹{data.fare.ratePerHour}/hr)</p>
-                        <p className="font-bold">₹{(data.fare.hours * data.fare.ratePerHour).toFixed(2)}</p>
+                        <p className="text-xs font-bold text-[#444444]">Hourly Charge <span className="text-[9px] text-[#AAAAAA] ml-2">({data.fare.hours} hrs × ₹{data.fare.ratePerHour})</span></p>
+                        <p className="text-xs font-bold">₹{(data.fare.hours * data.fare.ratePerHour).toFixed(2)}</p>
                       </div>
                     )}
                     {data.fare.extraKms > 0 && data.fare.extraKmsRate > 0 && (
                       <div className="flex justify-between items-center">
-                        <p className="font-semibold">Extra Kms Charge ({data.fare.extraKms} km × ₹{data.fare.extraKmsRate}/km)</p>
-                        <p className="font-bold">₹{(data.fare.extraKms * data.fare.extraKmsRate).toFixed(2)}</p>
+                        <p className="text-xs font-bold text-[#444444]">Extra Kms Charge <span className="text-[9px] text-[#AAAAAA] ml-2">({data.fare.extraKms} km × ₹{data.fare.extraKmsRate})</span></p>
+                        <p className="text-xs font-bold">₹{(data.fare.extraKms * data.fare.extraKmsRate).toFixed(2)}</p>
                       </div>
                     )}
                     {data.fare.toll > 0 && (
                       <div className="flex justify-between items-center">
-                        <p className="font-semibold">Toll & Parking</p>
-                        <p className="font-bold">₹{data.fare.toll.toFixed(2)}</p>
+                        <p className="text-xs font-bold text-[#444444]">Toll & Parking</p>
+                        <p className="text-xs font-bold">₹{data.fare.toll.toFixed(2)}</p>
                       </div>
                     )}
                     {data.fare.permit > 0 && (
                       <div className="flex justify-between items-center">
-                        <p className="font-semibold">Permit Charges</p>
-                        <p className="font-bold">₹{data.fare.permit.toFixed(2)}</p>
+                        <p className="text-xs font-bold text-[#444444]">Permit Charges</p>
+                        <p className="text-xs font-bold">₹{data.fare.permit.toFixed(2)}</p>
                       </div>
                     )}
                     {data.fare.waitingMinutes > 0 && (
                       <div className="flex justify-between items-center">
-                        <p className="font-semibold">Waiting Charges</p>
-                        <p className="font-bold">₹{(data.fare.waitingMinutes * data.fare.waitingRate).toFixed(2)}</p>
+                        <p className="text-xs font-bold text-[#444444]">Waiting Charges</p>
+                        <p className="text-xs font-bold">₹{(data.fare.waitingMinutes * data.fare.waitingRate).toFixed(2)}</p>
                       </div>
                     )}
                     {data.fare.driverBata > 0 && (
                       <div className="flex justify-between items-center">
-                        <p className="font-semibold">Driver Bata</p>
-                        <p className="font-bold">₹{data.fare.driverBata.toFixed(2)}</p>
+                        <p className="text-xs font-bold text-[#444444]">Driver Bata</p>
+                        <p className="text-xs font-bold">₹{data.fare.driverBata.toFixed(2)}</p>
                       </div>
                     )}
                     {data.fare.peakCharge > 0 && (
                       <div className="flex justify-between items-center">
-                        <p className="font-semibold">Peak Charge</p>
-                        <p className="font-bold">₹{data.fare.peakCharge.toFixed(2)}</p>
+                        <p className="text-xs font-bold text-[#444444]">Peak Charge</p>
+                        <p className="text-xs font-bold">₹{data.fare.peakCharge.toFixed(2)}</p>
                       </div>
                     )}
                     {data.fare.extraCharges > 0 && (
                       <div className="flex justify-between items-center">
-                        <p className="font-semibold">Extra Charges</p>
-                        <p className="font-bold">₹{data.fare.extraCharges.toFixed(2)}</p>
+                        <p className="text-xs font-bold text-[#444444]">Extra Charges</p>
+                        <p className="text-xs font-bold">₹{data.fare.extraCharges.toFixed(2)}</p>
                       </div>
                     )}
                     {data.fare.surcharge > 0 && (
                       <div className="flex justify-between items-center">
-                        <p className="font-semibold">Surcharge</p>
-                        <p className="font-bold">₹{data.fare.surcharge.toFixed(2)}</p>
+                        <p className="text-xs font-bold text-[#444444]">Surcharge</p>
+                        <p className="text-xs font-bold">₹{data.fare.surcharge.toFixed(2)}</p>
                       </div>
                     )}
                     {data.fare.dayRent > 0 && (
                       <div className="flex justify-between items-center">
-                        <p className="font-semibold">Day Rent</p>
-                        <p className="font-bold">₹{data.fare.dayRent.toFixed(2)}</p>
+                        <p className="text-xs font-bold text-[#444444]">Day Rent</p>
+                        <p className="text-xs font-bold">₹{data.fare.dayRent.toFixed(2)}</p>
                       </div>
                     )}
                     {data.fare.hillsCharge > 0 && (
                       <div className="flex justify-between items-center">
-                        <p className="font-semibold">Hills Charge</p>
-                        <p className="font-bold">₹{data.fare.hillsCharge.toFixed(2)}</p>
+                        <p className="text-xs font-bold text-[#444444]">Hills Charge</p>
+                        <p className="text-xs font-bold">₹{data.fare.hillsCharge.toFixed(2)}</p>
                       </div>
                     )}
                   </div>
                 </div>
 
                 {/* Totals */}
-                <div className="space-y-1.5 mb-3">
-                  <div className="flex justify-between items-center pt-4 border-t border-[#F2F2F2]">
-                    <p className="text-lg font-bold">Grand Total</p>
-                    <p className="text-xl font-bold">₹{calculateTotal().grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-                  </div>
-                  
-                  {data.fare.advancePaid > 0 && (
-                  <div className="-mx-[10mm] bg-[#E9F2F5] border-t border-b border-[#E6E6E6] px-[10mm] py-3 flex justify-between items-center">
-                      <p className="text-sm font-bold text-[#DC2626]">Advance Paid</p>
-                      <p className="text-lg font-bold text-[#DC2626]">- ₹{data.fare.advancePaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-                    </div>
-                  )}
+                <div className="mb-6 rounded-xl border shadow-sm p-4 space-y-3 bg-white">
 
-                  <div className="-mx-[10mm] bg-[#E9F2F5] border-t border-b border-[#E6E6E6] px-[10mm] py-3 flex justify-between items-center">
-                    <p className="text-lg font-bold">Balance Payable</p>
-                    <p className="text-xl font-bold">₹{calculateTotal().balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-                  </div>
-                </div>
+<div className="flex justify-between">
+    <span className="text-gray-600 font-semibold">
+      Grand Total
+    </span>
+    <span className="font-bold text-lg">
+      ₹{calculateTotal().grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+    </span>
+  </div>
 
-                    {data.notes && (
-                      <div className="mb-3">
-                        <p className="text-[10px] font-bold text-[#999999] uppercase tracking-widest mb-1.5">Notes</p>
-                        <p className="text-sm text-[#4D4D4D] whitespace-pre-wrap leading-relaxed text-justify">{data.notes}</p>
-                      </div>
-                    )}
+  {/* Advance Paid */}
+  {data.fare.advancePaid > 0 && (
+    <div className="flex justify-between text-red-600">
+      <span className="font-semibold">
+        Advance Paid
+      </span>
+      <span className="font-bold text-lg">
+        - ₹{data.fare.advancePaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+      </span>
+    </div>
+  )}
+
+  {/* Balance Payable */}
+  <div className="border-t pt-3 flex justify-between items-center">
+    <span className="text-blue-600 font-bold uppercase">
+      Balance Payable
+    </span>
+    <span className="font-bold text-lg text-blue-600">
+      ₹{calculateTotal().balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+    </span>
+  </div>
+
+</div>
+                {data.notes && (
+                  <div className="mb-6">
+                    <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-[#888888] mb-1.5 border-b border-[#EEEEEE] pb-1">Terms & Notes</h3>
+                    <p className="text-xs text-[#666666] whitespace-pre-wrap leading-relaxed">{data.notes}</p>
+                  </div>
+                )}
 
                 {/* Footer Info */}
-                <div className="grid grid-cols-2 gap-8 mb-3">
-                  <div>
-                    <p className="text-[10px] font-bold text-[#999999] uppercase tracking-widest mb-2">Driver Name</p>
-                    <p className="font-bold uppercase">{data.driver.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-[#999999] uppercase tracking-widest mb-2">Vehicle Number</p>
-                    <p className="font-bold uppercase">{data.vehicle.number}</p>
-                  </div>
+                <div className="mb-6">
+                  <p className="text-[8px] font-black text-[#AAAAAA] uppercase tracking-[0.2em] mb-1">Driver</p>
+                  <p className="text-sm font-bold uppercase tracking-tight">{data.driver.name}</p>
                 </div>
 
                 {/* Closing Message */}
-                <div className="text-center space-y-2">
-                  {data.company.name && <p className="text-sm font-semibold text-[#666666]">Thank you for travelling with {data.company.name}!</p>}
-                  <p className="text-[10px] font-bold text-[#B2B2B2] uppercase tracking-widest">This is a computer generated invoice.</p>
+                <div className="text-center pt-4 border-t border-[#EEEEEE]">
+                  <p className="text-xs font-bold text-[#000000] uppercase tracking-widest mb-0.5">Thank you for travelling with us</p>
+                  <p className="text-[9px] font-bold text-[#AAAAAA] uppercase tracking-[0.2em]">Computer Generated Invoice</p>
                 </div>
               </div>
             </div>
