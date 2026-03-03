@@ -12,7 +12,11 @@ import {
   Upload,
   X,
   Lock,
-  LogOut
+  LogOut,
+  Phone,
+  Mail,
+  Globe,
+  MapPin
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import html2canvas from 'html2canvas';
@@ -1081,35 +1085,68 @@ export default function App() {
                     className="bg-white shadow-2xl mx-auto p-[10mm] w-[210mm] border border-[#F2F2F2] print:shadow-none print:border-none text-[#1A1A1A] print-invoice"
                   >
                 {/* Header Section */}
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex items-center gap-4">
-                    {logoPreview && (
-                      <img src={logoPreview} alt="Logo" className="h-14 w-14 object-contain" referrerPolicy="no-referrer" />
+                <div className="flex justify-between items-start mb-6 px-1">
+                  {/* Logo Side */}
+                  <div className="flex flex-col items-start">
+                    {logoPreview ? (
+                      <div className="bg-white mb-4">
+                        <img src={logoPreview} alt="Logo" className="h-24 w-24 object-contain" referrerPolicy="no-referrer" />
+                      </div>
+                    ) : (
+                      <div className="bg-black text-white p-6 rounded-2xl mb-4 flex items-center justify-center">
+                        <span className="text-sm font-black uppercase tracking-widest">LOGO</span>
+                      </div>
                     )}
                     <div>
-                      {data.company.name && <h1 className="text-xl font-black tracking-tighter text-[#000000] uppercase leading-none">{data.company.name}</h1>}
-                      {data.company.address && <p className="text-xs text-[#666666] leading-tight mt-1 max-w-[280px]">{data.company.address}</p>}
-                      {data.company.customInfo && <p className="text-[10px] text-[#888888] mt-1 font-bold uppercase tracking-widest">{data.company.customInfo}</p>}
+                      <h2 className="text-2xl font-black uppercase tracking-tighter text-[#000000] leading-none">Invoice</h2>
+                      <p className="text-[9px] font-bold text-[#999999] mt-1 tracking-widest uppercase">#{data.invoice.number}</p>
                     </div>
                   </div>
-                  <div className="text-right space-y-0.5">
-                    {data.company.phone && <p className="text-xs font-bold">{data.company.phone}</p>}
-                    {data.company.email && <p className="text-xs font-bold text-[#666666]">{data.company.email}</p>}
-                    {data.company.website && <p className="text-xs font-bold text-[#666666]">{data.company.website}</p>}
-                  </div>
-                </div>
 
-                <div className="h-[1px] bg-black/10 w-full mb-4" />
+                  {/* Company Details Side */}
+                  <div className="text-right max-w-[300px]">
+                    {data.company.name && (
+                      <h1 className="text-xl font-black tracking-tighter text-[#000000] uppercase leading-none mb-2">
+                        {data.company.name}
+                      </h1>
+                    )}
+                    
+                    <div className="space-y-1">
+                      {data.company.address && (
+                        <p className="text-[10px] font-bold text-[#666666] leading-tight">
+                          {data.company.address}
+                        </p>
+                      )}
+                      
+                      <div className="flex flex-col items-end gap-0.5 pt-1.5 mt-1.5 border-t border-[#F3F4F6]">
+                        {data.company.phone && (
+                          <p className="text-[10px] font-bold text-[#000000]">
+                            {data.company.phone}
+                          </p>
+                        )}
+                        {data.company.email && (
+                          <p className="text-[10px] font-bold text-[#666666]">
+                            {data.company.email}
+                          </p>
+                        )}
+                        {data.company.website && (
+                          <p className="text-[10px] font-bold text-[#666666]">
+                            {data.company.website}
+                          </p>
+                        )}
+                      </div>
 
-                {/* Title and Invoice Info */}
-                <div className="flex justify-between items-end mb-6">
-                  <div>
-                    <h2 className="text-2xl font-black uppercase tracking-tighter text-[#000000] leading-none">Invoice</h2>
-                    <p className="text-xs font-bold text-[#888888] mt-1">#{data.invoice.number}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[9px] font-black text-[#888888] uppercase tracking-[0.2em] mb-1">Date of Issue</p>
-                    <p className="text-sm font-bold">{data.invoice.date}</p>
+                      {data.company.customInfo && (
+                        <p className="text-[8px] font-black text-blue-700 uppercase tracking-widest pt-1">
+                          {data.company.customInfo}
+                        </p>
+                      )}
+
+                      <div className="pt-2">
+                        <p className="text-[8px] font-black text-[#BBBBBB] uppercase tracking-widest mb-0.5">Issued On</p>
+                        <p className="text-[11px] font-bold text-[#000000]">{data.invoice.date}</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
