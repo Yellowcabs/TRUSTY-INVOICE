@@ -734,17 +734,37 @@ export default function App() {
                   </div>
                   <div>
                     <label className="block text-[11px] font-semibold uppercase tracking-wider text-black/40 mb-1">Invoice Date</label>
-                   <input 
+<input 
   type="date" 
   value={data.invoice.date}
   onChange={(e) => {
-    const date = e.target.value;
+    const date = e.target.value; // selected date
     updateField('invoice', 'date', date);
-    updateField('invoice', 'number', `INV-${date.replaceAll('-', '')}`);
+
+    if (!date) return;
+
+    const formattedDate = date.replace(/-/g, ''); // e.g. 20260306
+
+    // Load existing random numbers for this date from localStorage
+    const usedNumbers = JSON.parse(localStorage.getItem('invoiceRandoms') || '{}');
+    const todayNumbers = new Set(usedNumbers[formattedDate] || []);
+
+    // Generate unique 4-digit random number
+    let randomNumber;
+    do {
+      randomNumber = Math.floor(1000 + Math.random() * 9000);
+    } while (todayNumbers.has(randomNumber));
+
+    // Save it for today
+    todayNumbers.add(randomNumber);
+    usedNumbers[formattedDate] = Array.from(todayNumbers);
+    localStorage.setItem('invoiceRandoms', JSON.stringify(usedNumbers));
+
+    // Update invoice number
+    updateField('invoice', 'number', `INV-${formattedDate}-${randomNumber}`);
   }}
   className="w-full bg-[#F9F9F9] border-none rounded-xl px-4 py-3 outline-none"
-/>
-                  </div>
+/>               </div>
                 </div>
               </section>
 
