@@ -103,7 +103,7 @@ export default function App() {
     const extraKmsAmount = fare.extraKms * fare.extraKmsRate;
     const waitingCharge = fare.waitingMinutes * fare.waitingRate;
     
-    const grandTotal = 
+    const subTotal = 
       fare.baseFare +
       tripAmount + 
       hourlyAmount +
@@ -118,9 +118,13 @@ export default function App() {
       fare.dayRent +
       fare.hillsCharge;
 
+    const taxAmount = (subTotal * fare.taxPercentage) / 100;
+    const grandTotal = subTotal + taxAmount;
     const balance = grandTotal - fare.advancePaid;
     
     return {
+      subTotal,
+      taxAmount,
       grandTotal,
       advance: fare.advancePaid,
       balance: Math.max(0, balance)
@@ -182,7 +186,21 @@ export default function App() {
             allElements.forEach((el) => {
               if (el instanceof HTMLElement) {
                 const style = window.getComputedStyle(el);
-                el.style.color = normalizeColor(style.color);
+                let color = style.color;
+                
+                // Darken light colors for print clarity
+                const rgb = color.match(/\d+/g);
+                if (rgb && rgb.length >= 3) {
+                  const r = parseInt(rgb[0]);
+                  const g = parseInt(rgb[1]);
+                  const b = parseInt(rgb[2]);
+                  // If color is a shade of gray and relatively light (e.g. #888, #AAA, #666)
+                  if (Math.abs(r-g) < 20 && Math.abs(g-b) < 20 && r > 60) {
+                    color = 'rgb(0, 0, 0)'; // Force to pure black for maximum print visibility
+                  }
+                }
+
+                el.style.color = normalizeColor(color);
                 el.style.backgroundColor = normalizeColor(style.backgroundColor);
                 el.style.borderColor = normalizeColor(style.borderColor);
                 // Fix for uneven text
@@ -306,7 +324,21 @@ export default function App() {
             allElements.forEach((el) => {
               if (el instanceof HTMLElement) {
                 const style = window.getComputedStyle(el);
-                el.style.color = normalizeColor(style.color);
+                let color = style.color;
+                
+                // Darken light colors for print clarity
+                const rgb = color.match(/\d+/g);
+                if (rgb && rgb.length >= 3) {
+                  const r = parseInt(rgb[0]);
+                  const g = parseInt(rgb[1]);
+                  const b = parseInt(rgb[2]);
+                  // If color is a shade of gray and relatively light (e.g. #888, #AAA, #666)
+                  if (Math.abs(r-g) < 20 && Math.abs(g-b) < 20 && r > 60) {
+                    color = 'rgb(0, 0, 0)'; // Force to pure black for maximum print visibility
+                  }
+                }
+
+                el.style.color = normalizeColor(color);
                 el.style.backgroundColor = normalizeColor(style.backgroundColor);
                 el.style.borderColor = normalizeColor(style.borderColor);
                 // Fix for uneven text
@@ -374,7 +406,7 @@ export default function App() {
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
-          title: `Taxi Invoice: ${data.invoice.number}`,
+          
         });
       } else {
         // Fallback: Download and notify
@@ -437,10 +469,10 @@ export default function App() {
   };
 
   const updateFare = (field: keyof InvoiceData['fare'], value: string) => {
-    const numValue = parseFloat(value) || 0;
+    const finalValue = field === 'taxLabel' ? value : (parseFloat(value) || 0);
     setData(prev => ({
       ...prev,
-      fare: { ...prev.fare, [field]: numValue }
+      fare: { ...prev.fare, [field]: finalValue }
     }));
   };
 
@@ -702,12 +734,16 @@ export default function App() {
                   </div>
                   <div>
                     <label className="block text-[11px] font-semibold uppercase tracking-wider text-black/40 mb-1">Invoice Date</label>
-                    <input 
-                      type="date" 
-                      value={data.invoice.date}
-                      onChange={(e) => updateField('invoice', 'date', e.target.value)}
-                      className="w-full bg-[#F9F9F9] border-none rounded-xl px-4 py-3 outline-none"
-                    />
+                   <input 
+  type="date" 
+  value={data.invoice.date}
+  onChange={(e) => {
+    const date = e.target.value;
+    updateField('invoice', 'date', date);
+    updateField('invoice', 'number', `INV-${date.replaceAll('-', '')}`);
+  }}
+  className="w-full bg-[#F9F9F9] border-none rounded-xl px-4 py-3 outline-none"
+/>
                   </div>
                 </div>
               </section>
@@ -722,12 +758,12 @@ export default function App() {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-[11px] font-semibold uppercase tracking-wider text-black/40 mb-1">Name</label>
-                      <input 
-                        type="text" 
-                        value={data.passenger.name}
-                        onChange={(e) => updateField('passenger', 'name', e.target.value.toUpperCase())}
-                        className="w-full bg-[#F9F9F9] border-none rounded-xl px-4 py-3 outline-none"
-                      />
+                   <input 
+  type="text" 
+  value={data.passenger.name}
+  onChange={(e) => updateField('passenger', 'name', e.target.value.toUpperCase())}
+  className="w-full bg-[#F9F9F9] border-none rounded-xl px-4 py-3 outline-none"
+/>
                     </div>
                     <div>
                       <label className="block text-[11px] font-semibold uppercase tracking-wider text-black/40 mb-1">Phone</label>
@@ -749,21 +785,21 @@ export default function App() {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-[11px] font-semibold uppercase tracking-wider text-black/40 mb-1">From Location</label>
-                      <input 
-                        type="text" 
-                        value={data.trip.pickup}
-                        onChange={(e) => updateField('trip', 'pickup', e.target.value.toUpperCase())}
-                        className="w-full bg-[#F9F9F9] border-none rounded-xl px-4 py-3 outline-none"
-                      />
+                     <input 
+  type="text" 
+  value={data.trip.pickup}
+  onChange={(e) => updateField('trip', 'pickup', e.target.value.toUpperCase())}
+  className="w-full bg-[#F9F9F9] border-none rounded-xl px-4 py-3 outline-none"
+/>
                     </div>
                     <div>
                       <label className="block text-[11px] font-semibold uppercase tracking-wider text-black/40 mb-1">To Location</label>
                       <input 
-                        type="text" 
-                        value={data.trip.drop}
-                        onChange={(e) => updateField('trip', 'drop', e.target.value.toUpperCase())}
-                        className="w-full bg-[#F9F9F9] border-none rounded-xl px-4 py-3 outline-none"
-                      />
+  type="text" 
+  value={data.trip.drop}
+  onChange={(e) => updateField('trip', 'drop', e.target.value.toUpperCase())}
+  className="w-full bg-[#F9F9F9] border-none rounded-xl px-4 py-3 outline-none"
+/>
                     </div>
                   </div>
                 </section>
@@ -779,34 +815,40 @@ export default function App() {
                   <div>
                     <label className="block text-[11px] font-semibold uppercase tracking-wider text-black/40 mb-1">Vehicle Type</label>
                     <input 
-                      list="vehicle-types"
-                      value={data.vehicle.type}
-                      onChange={(e) => updateField('vehicle', 'type', e.target.value.toUpperCase())}
-                      placeholder="Eg: SEDAN"
-                      className="w-full bg-[#F9F9F9] border-none rounded-xl px-4 py-3 outline-none"
-                    />
+  list="vehicle-types"
+  value={data.vehicle.type}
+  onChange={(e) => updateField('vehicle', 'type', e.target.value.toUpperCase())}
+  placeholder="Eg: SEDAN"
+  className="w-full bg-[#F9F9F9] border-none rounded-xl px-4 py-3 outline-none"
+/>
                     <datalist id="vehicle-types">
                       {VEHICLE_TYPES.map(type => <option key={type} value={type} />)}
                     </datalist>
                   </div>
                   <div>
                     <label className="block text-[11px] font-semibold uppercase tracking-wider text-black/40 mb-1">Vehicle Number</label>
-                    <input 
-                      type="text" 
-                      value={data.vehicle.number}
-                      onChange={(e) => updateField('vehicle', 'number', e.target.value.toUpperCase())}
-                      placeholder="TN 66 XX XXXX"
-                      className="w-full bg-[#F9F9F9] border-none rounded-xl px-4 py-3 outline-none"
-                    />
+                 <input
+  type="text"
+  value={data.vehicle.number}
+  onChange={(e) => {
+    const v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const formatted = v.replace(/^([A-Z]{0,2})(\d{0,2})([A-Z]{0,2})(\d{0,4}).*/, 
+      (m, a, b, c, d) => [a, b, c, d].filter(Boolean).join(' ')
+    );
+    updateField('vehicle', 'number', formatted);
+  }}
+  placeholder="TN 66 AB 1234"
+  className="w-full bg-[#F9F9F9] border-none rounded-xl px-4 py-3 outline-none"
+/>
                   </div>
                   <div>
                     <label className="block text-[11px] font-semibold uppercase tracking-wider text-black/40 mb-1">Driver Name</label>
-                    <input 
-                      type="text" 
-                      value={data.driver.name}
-                      onChange={(e) => updateField('driver', 'name', e.target.value.toUpperCase())}
-                      className="w-full bg-[#F9F9F9] border-none rounded-xl px-4 py-3 outline-none"
-                    />
+                 <input 
+  type="text" 
+  value={data.driver.name}
+  onChange={(e) => updateField('driver', 'name', e.target.value.toUpperCase())}
+  className="w-full bg-[#F9F9F9] border-none rounded-xl px-4 py-3 outline-none"
+/>
                   </div>
                 </div>
               </section>
@@ -943,6 +985,27 @@ export default function App() {
                       onChange={(e) => updateFare('hillsCharge', e.target.value)}
                       className="w-full bg-[#F9F9F9] border-none rounded-xl px-4 py-3 outline-none"
                     />
+                  </div>
+                  <div className="bg-orange-50/50 p-3 rounded-xl border border-orange-100/50 col-span-2 grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-semibold uppercase tracking-wider text-orange-600/60 mb-1">Tax Label (e.g. GST)</label>
+                      <input 
+                        type="text" 
+                        value={data.fare.taxLabel || ''}
+                        onChange={(e) => updateFare('taxLabel', e.target.value)}
+                        placeholder=""
+                        className="w-full bg-white border-none rounded-lg px-4 py-3 outline-none shadow-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold uppercase tracking-wider text-orange-600/60 mb-1">Tax (%)</label>
+                      <input 
+                        type="number" 
+                        value={data.fare.taxPercentage || ''}
+                        onChange={(e) => updateFare('taxPercentage', e.target.value)}
+                        className="w-full bg-white border-none rounded-lg px-4 py-3 outline-none shadow-sm"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -1088,32 +1151,28 @@ export default function App() {
                 <div className="flex justify-between items-start mb-6 px-1">
                   {/* Logo Side */}
                   <div className="flex flex-col items-start">
-                    {logoPreview ? (
+                    {logoPreview && (
                       <div className="bg-white mb-4">
                         <img src={logoPreview} alt="Logo" className="h-24 w-24 object-contain" referrerPolicy="no-referrer" />
-                      </div>
-                    ) : (
-                      <div className="bg-black text-white p-6 rounded-2xl mb-4 flex items-center justify-center">
-                        <span className="text-sm font-black uppercase tracking-widest">LOGO</span>
                       </div>
                     )}
                     <div>
                       <h2 className="text-2xl font-black uppercase tracking-tighter text-[#000000] leading-none">Invoice</h2>
-                      <p className="text-[9px] font-bold text-[#999999] mt-1 tracking-widest uppercase">#{data.invoice.number}</p>
+                      <p className="text-[9px] font-bold text-[#444444] mt-1 tracking-widest uppercase">#{data.invoice.number}</p>
                     </div>
                   </div>
 
                   {/* Company Details Side */}
                   <div className="text-right max-w-[300px]">
                     {data.company.name && (
-                      <h1 className="text-xl font-black tracking-tighter text-[#000000] uppercase leading-none mb-2">
+                      <h1 className="text-xl font-black tracking-tighter text-[#000000] leading-none mb-2">
                         {data.company.name}
                       </h1>
                     )}
                     
                     <div className="space-y-1">
                       {data.company.address && (
-                        <p className="text-[10px] font-bold text-[#666666] leading-tight">
+                        <p className="text-[10px] font-bold text-[#333333] leading-tight">
                           {data.company.address}
                         </p>
                       )}
@@ -1125,25 +1184,25 @@ export default function App() {
                           </p>
                         )}
                         {data.company.email && (
-                          <p className="text-[10px] font-bold text-[#666666]">
+                          <p className="text-[10px] font-bold text-[#333333]">
                             {data.company.email}
                           </p>
                         )}
                         {data.company.website && (
-                          <p className="text-[10px] font-bold text-[#666666]">
+                          <p className="text-[10px] font-bold text-[#333333]">
                             {data.company.website}
                           </p>
                         )}
                       </div>
 
                       {data.company.customInfo && (
-                        <p className="text-[8px] font-black text-blue-700 uppercase tracking-widest pt-1">
+                        <p className="text-[8px] font-black text-blue-700 pt-1">
                           {data.company.customInfo}
                         </p>
                       )}
 
                       <div className="pt-2">
-                        <p className="text-[8px] font-black text-[#BBBBBB] uppercase tracking-widest mb-0.5">Issued On</p>
+                        <p className="text-[8px] font-black text-[#444444] uppercase tracking-widest mb-0.5">Issued On</p>
                         <p className="text-[11px] font-bold text-[#000000]">{data.invoice.date}</p>
                       </div>
                     </div>
@@ -1153,21 +1212,21 @@ export default function App() {
                 {/* Details Grid */}
                 <div className="grid grid-cols-2 gap-8 mb-6">
                   <div>
-                    <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-[#888888] mb-2 border-b border-[#EEEEEE] pb-1">Passenger</h3>
+                    <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-[#444444] mb-2 border-b border-gray-300 pb-1">Passenger</h3>
                     <div className="space-y-0.5">
                       <p className="text-sm font-bold">{data.passenger.name}</p>
-                      <p className="text-xs font-bold text-[#666666]">{data.passenger.phone}</p>
+                      <p className="text-xs font-bold text-[#333333]">{data.passenger.phone}</p>
                     </div>
                   </div>
                   <div>
-                    <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-[#888888] mb-2 border-b border-[#EEEEEE] pb-1">Trip Route</h3>
+                    <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-[#444444] mb-2 border-b border-gray-300 pb-1">Trip Route</h3>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <p className="text-[8px] font-black text-[#AAAAAA] uppercase tracking-widest mb-0.5">Pickup</p>
+                        <p className="text-[8px] font-black text-[#444444] uppercase tracking-widest mb-0.5">Pickup</p>
                         <p className="text-xs font-bold leading-tight">{data.trip.pickup}</p>
                       </div>
                       <div>
-                        <p className="text-[8px] font-black text-[#AAAAAA] uppercase tracking-widest mb-0.5">Drop</p>
+                        <p className="text-[8px] font-black text-[#444444] uppercase tracking-widest mb-0.5">Drop</p>
                         <p className="text-xs font-bold leading-tight">{data.trip.drop}</p>
                       </div>
                     </div>
@@ -1175,14 +1234,14 @@ export default function App() {
                 </div>
 
                 {/* Vehicle Info Bar */}
-                <div className="bg-[#F8F9FA] border border-black/5 rounded-lg p-3 flex justify-between items-center mb-6">
+                <div className="bg-[#F8F9FA] border border-black/10 rounded-lg p-3 flex justify-between items-center mb-6">
                   <div>
-                    <p className="text-[8px] font-bold text-[#888888] uppercase tracking-[0.2em] mb-0.5">Vehicle Details</p>
-                    <p className="text-sm font-bold uppercase">{data.vehicle.type} — {data.vehicle.number}</p>
+                    <p className="text-[8px] font-bold text-[#444444] uppercase tracking-[0.2em] mb-0.5">Vehicle Details</p>
+                    <p className="text-sm font-bold">{data.vehicle.type} — {data.vehicle.number}</p>
                   </div>
-                  {!(data.fare.hours > 0 || data.fare.extraKms > 0) && data.fare.distance > 0 && (
+                  {data.fare.distance > 0 && (
                     <div className="text-right">
-                      <p className="text-[8px] font-bold text-[#888888] uppercase tracking-[0.2em] mb-0.5">Total Distance</p>
+                      <p className="text-[8px] font-bold text-[#444444] uppercase tracking-[0.2em] mb-0.5">Total Distance</p>
                       <p className="text-sm font-bold">{data.fare.distance} Kms</p>
                     </div>
                   )}
@@ -1190,83 +1249,83 @@ export default function App() {
 
                 {/* Fare Breakdown */}
                 <div className="mb-6">
-                  <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-[#888888] mb-3 border-b border-[#EEEEEE] pb-1">Charges Breakdown</h3>
+                  <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-[#444444] mb-3 border-b border-gray-300 pb-1">Charges Breakdown</h3>
                   <div className="space-y-2">
                     {data.fare.baseFare > 0 && (
                       <div className="flex justify-between items-center">
-                        <p className="text-xs font-bold text-[#444444]">Base Fare</p>
+                        <p className="text-xs font-bold text-[#222222]">Base Fare</p>
                         <p className="text-xs font-bold">₹{data.fare.baseFare.toFixed(2)}</p>
                       </div>
                     )}
                     {data.fare.distance > 0 && data.fare.ratePerKm > 0 && (
                       <div className="flex justify-between items-center">
-                        <p className="text-xs font-bold text-[#444444]">Kms Charge <span className="text-[9px] text-[#AAAAAA] ml-2">({data.fare.distance} km × ₹{data.fare.ratePerKm})</span></p>
+                        <p className="text-xs font-bold text-[#222222]">Kms Charge <span className="text-[9px] text-[#444444] ml-2">({data.fare.distance} km × ₹{data.fare.ratePerKm})</span></p>
                         <p className="text-xs font-bold">₹{(data.fare.distance * data.fare.ratePerKm).toFixed(2)}</p>
                       </div>
                     )}
                     {data.fare.hours > 0 && data.fare.ratePerHour > 0 && (
                       <div className="flex justify-between items-center">
-                        <p className="text-xs font-bold text-[#444444]">Hourly Charge <span className="text-[9px] text-[#AAAAAA] ml-2">({data.fare.hours} hrs × ₹{data.fare.ratePerHour})</span></p>
+                        <p className="text-xs font-bold text-[#222222]">Hourly Charge <span className="text-[9px] text-[#444444] ml-2">({data.fare.hours} hrs × ₹{data.fare.ratePerHour})</span></p>
                         <p className="text-xs font-bold">₹{(data.fare.hours * data.fare.ratePerHour).toFixed(2)}</p>
                       </div>
                     )}
                     {data.fare.extraKms > 0 && data.fare.extraKmsRate > 0 && (
                       <div className="flex justify-between items-center">
-                        <p className="text-xs font-bold text-[#444444]">Extra Kms Charge <span className="text-[9px] text-[#AAAAAA] ml-2">({data.fare.extraKms} km × ₹{data.fare.extraKmsRate})</span></p>
+                        <p className="text-xs font-bold text-[#222222]">Extra Kms Charge <span className="text-[9px] text-[#444444] ml-2">({data.fare.extraKms} km × ₹{data.fare.extraKmsRate})</span></p>
                         <p className="text-xs font-bold">₹{(data.fare.extraKms * data.fare.extraKmsRate).toFixed(2)}</p>
                       </div>
                     )}
                     {data.fare.toll > 0 && (
                       <div className="flex justify-between items-center">
-                        <p className="text-xs font-bold text-[#444444]">Toll & Parking</p>
+                        <p className="text-xs font-bold text-[#222222]">Toll & Parking</p>
                         <p className="text-xs font-bold">₹{data.fare.toll.toFixed(2)}</p>
                       </div>
                     )}
                     {data.fare.permit > 0 && (
                       <div className="flex justify-between items-center">
-                        <p className="text-xs font-bold text-[#444444]">Permit Charges</p>
+                        <p className="text-xs font-bold text-[#222222]">Permit Charges</p>
                         <p className="text-xs font-bold">₹{data.fare.permit.toFixed(2)}</p>
                       </div>
                     )}
                     {data.fare.waitingMinutes > 0 && (
                       <div className="flex justify-between items-center">
-                        <p className="text-xs font-bold text-[#444444]">Waiting Charges</p>
+                        <p className="text-xs font-bold text-[#222222]">Waiting Charges</p>
                         <p className="text-xs font-bold">₹{(data.fare.waitingMinutes * data.fare.waitingRate).toFixed(2)}</p>
                       </div>
                     )}
                     {data.fare.driverBata > 0 && (
                       <div className="flex justify-between items-center">
-                        <p className="text-xs font-bold text-[#444444]">Driver Bata</p>
+                        <p className="text-xs font-bold text-[#222222]">Driver Bata</p>
                         <p className="text-xs font-bold">₹{data.fare.driverBata.toFixed(2)}</p>
                       </div>
                     )}
                     {data.fare.peakCharge > 0 && (
                       <div className="flex justify-between items-center">
-                        <p className="text-xs font-bold text-[#444444]">Peak Charge</p>
+                        <p className="text-xs font-bold text-[#222222]">Peak Charge</p>
                         <p className="text-xs font-bold">₹{data.fare.peakCharge.toFixed(2)}</p>
                       </div>
                     )}
                     {data.fare.extraCharges > 0 && (
                       <div className="flex justify-between items-center">
-                        <p className="text-xs font-bold text-[#444444]">Extra Charges</p>
+                        <p className="text-xs font-bold text-[#222222]">Extra Charges</p>
                         <p className="text-xs font-bold">₹{data.fare.extraCharges.toFixed(2)}</p>
                       </div>
                     )}
                     {data.fare.surcharge > 0 && (
                       <div className="flex justify-between items-center">
-                        <p className="text-xs font-bold text-[#444444]">Surcharge</p>
+                        <p className="text-xs font-bold text-[#222222]">Surcharge</p>
                         <p className="text-xs font-bold">₹{data.fare.surcharge.toFixed(2)}</p>
                       </div>
                     )}
                     {data.fare.dayRent > 0 && (
                       <div className="flex justify-between items-center">
-                        <p className="text-xs font-bold text-[#444444]">Day Rent</p>
+                        <p className="text-xs font-bold text-[#222222]">Day Rent</p>
                         <p className="text-xs font-bold">₹{data.fare.dayRent.toFixed(2)}</p>
                       </div>
                     )}
                     {data.fare.hillsCharge > 0 && (
                       <div className="flex justify-between items-center">
-                        <p className="text-xs font-bold text-[#444444]">Hills Charge</p>
+                        <p className="text-xs font-bold text-[#222222]">Hills Charge</p>
                         <p className="text-xs font-bold">₹{data.fare.hillsCharge.toFixed(2)}</p>
                       </div>
                     )}
@@ -1275,56 +1334,56 @@ export default function App() {
 
                 {/* Totals */}
                 <div className="mb-6 rounded-xl border shadow-sm p-4 space-y-3 bg-white">
+                  {data.fare.taxPercentage > 0 && (
+                    <>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-800 font-semibold">Sub Total</span>
+                        <span className="font-bold">₹{calculateTotal().subTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-800 font-semibold">{data.fare.taxLabel} ({data.fare.taxPercentage}%)</span>
+                        <span className="font-bold">₹{calculateTotal().taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="border-t border-gray-300 my-1" />
+                    </>
+                  )}
 
-<div className="flex justify-between">
-    <span className="text-gray-600 font-semibold">
-      Grand Total
-    </span>
-    <span className="font-bold text-lg">
-      ₹{calculateTotal().grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-    </span>
-  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-800 font-semibold">Grand Total</span>
+                    <span className="font-bold text-lg">₹{calculateTotal().grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                  </div>
 
-  {/* Advance Paid */}
-  {data.fare.advancePaid > 0 && (
-    <div className="flex justify-between text-red-600">
-      <span className="font-semibold">
-        Advance Paid
-      </span>
-      <span className="font-bold text-lg">
-        - ₹{data.fare.advancePaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-      </span>
-    </div>
-  )}
+                  {/* Advance Paid */}
+                  {data.fare.advancePaid > 0 && (
+                    <div className="flex justify-between text-red-600">
+                      <span className="font-semibold">Advance Paid</span>
+                      <span className="font-bold text-lg">- ₹{data.fare.advancePaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
 
-  {/* Balance Payable */}
-  <div className="border-t pt-3 flex justify-between items-center">
-    <span className="text-blue-600 font-bold uppercase">
-      Balance Payable
-    </span>
-    <span className="font-bold text-lg text-blue-600">
-      ₹{calculateTotal().balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-    </span>
-  </div>
-
-</div>
+                  {/* Balance Payable */}
+                  <div className="border-t pt-3 flex justify-between items-center">
+                    <span className="text-blue-600 font-bold uppercase">Balance Payable</span>
+                    <span className="font-bold text-lg text-blue-600">₹{calculateTotal().balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
                 {data.notes && (
                   <div className="mb-6">
-                    <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-[#888888] mb-1.5 border-b border-[#EEEEEE] pb-1">Terms & Notes</h3>
-                    <p className="text-xs text-[#666666] whitespace-pre-wrap leading-relaxed">{data.notes}</p>
+                    <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-[#444444] mb-1.5 border-b border-gray-300 pb-1">Terms & Notes</h3>
+                    <p className="text-xs text-[#333333] whitespace-pre-wrap leading-relaxed">{data.notes}</p>
                   </div>
                 )}
 
                 {/* Footer Info */}
                 <div className="mb-6">
-                  <p className="text-[8px] font-black text-[#AAAAAA] uppercase tracking-[0.2em] mb-1">Driver</p>
+                  <p className="text-[8px] font-black text-[#444444] uppercase tracking-[0.2em] mb-1">Driver</p>
                   <p className="text-sm font-bold uppercase tracking-tight">{data.driver.name}</p>
                 </div>
 
                 {/* Closing Message */}
-                <div className="text-center pt-4 border-t border-[#EEEEEE]">
+                <div className="text-center pt-4 border-t border-gray-300">
                   <p className="text-xs font-bold text-[#000000] uppercase tracking-widest mb-0.5">Thank you for travelling with us</p>
-                  <p className="text-[9px] font-bold text-[#AAAAAA] uppercase tracking-[0.2em]">Computer Generated Invoice</p>
+                  <p className="text-[9px] font-bold text-[#444444] uppercase tracking-[0.2em]">Computer Generated Invoice</p>
                 </div>
               </div>
             </div>

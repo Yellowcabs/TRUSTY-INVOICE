@@ -43,6 +43,8 @@ export interface InvoiceData {
     surcharge: number;
     dayRent: number;
     hillsCharge: number;
+    taxPercentage: number;
+    taxLabel: string;
   };
   driver: {
     name: string;
@@ -108,6 +110,8 @@ export const INITIAL_DATA: InvoiceData = {
     surcharge: 0,
     dayRent: 0,
     hillsCharge: 0,
+    taxPercentage: 0,
+    taxLabel: '',
   },
   driver: {
     name: '',
